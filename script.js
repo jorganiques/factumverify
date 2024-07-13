@@ -1,6 +1,5 @@
-// Object to store API keys
 const apiKeys = {
-    newsApiKey: 'd33534e32a2e4e91ab519acfb9ab8b42', // Setup value of apiKey with your actual News API key
+    newsdataApiKey: 'pub_48526852547f7a14aff65b94321d84248d0d6', // Setup value of apiKey with your actual NewsData.io API key
     meaningCloudApiKey: '3cad836143b352a37661657d43213759' // Replace with your actual MeaningCloud API key
 };
 
@@ -28,116 +27,99 @@ function displayError(message) {
 function createResultElement(article, index) {
     const resultElement = document.createElement('div');
     resultElement.classList.add('result');
+    
+    const title = article.title || 'No Title';
+    const source = article.source || 'Unknown Source';
+    const author = article.author || 'Unknown Author';
+    const publishedAt = article.publishedAt || 'Unknown Date';
+    const description = article.description || 'No Description';
+    const url = article.link;
+    const imageUrl = article.image_url || './images/image_not_available.png';
+
     resultElement.innerHTML = `
-        <h2>${article.title}</h2>
-        <p><strong>Source:</strong> ${article.source.name}</p>
-        <p><strong>Author:</strong> ${article.author}</p>
-        <p><strong>Published At:</strong> ${new Date(article.publishedAt).toLocaleDateString()}</p>
-        <p>${article.description}</p>
-        <img src="${article.urlToImage}" alt="news" class="centerToImage">
-        <p class="readMore"><a href="${article.url}" target="_blank">Read more</a></p>
-        <div class="summarize-container">
-            <button class="summarize" onclick="summarizeArticle('${article.url}', this, 'progressBar-${index}')">Summarize</button>
+        <h2>${title}</h2>
+        <p><strong>Source:</strong> ${source}</p>
+        <p><strong>Author:</strong> ${author}</p>
+        <p><strong>Published At:</strong> ${publishedAt}</p>
+        <img src="${imageUrl}" alt="Article Image" class="centerToImage">
+        <p>${description}</p>
+        <div class="readMore">
+            <a href="${url}" target="_blank">Read more</a>
         </div>
-        <div class="summary"></div>
-        <div id="progressBar-${index}" class="progress-bar" style="display: none;">
+        <div class="summarize-container">
+            <button class="summarize" onclick="summarizeArticle(${index})">Summarize</button>
+        </div>
+        <div class="progress-bar" id="progressBar-${index}" style="display: none;">
             <div class="progress"></div>
         </div>
+        <div class="summary" id="summary-${index}"></div>
     `;
+    
     return resultElement;
 }
 
-// Function to display the results in the results section
-function displayResults(data) {
-    // Clear previous results
-    clearPreviousResults();
+// Function to perform the fact check by fetching data from the NewsData API
+function factCheck(query, language) {
+    const apiUrl = `https://newsdata.io/api/1/latest?apikey=${apiKeys.newsdataApiKey}&q=${encodeURIComponent(query)}&language=${language}`;
 
-    // Check if there are no articles and display an error message if so
-    if (!data.articles || data.articles.length === 0) {
-        displayError('No results found. Please try a different query.');
-        return;
-    }
-
-    // Get the results section element
-    const resultsSection = document.getElementById('results');
-    
-    // Loop through each article and append the result element to the results section
-    data.articles.forEach((article, index) => {
-        if (article.title !== '[Removed]') {
-            resultsSection.appendChild(createResultElement(article, index));
-        }
-    });
-}
-
-// Function to fetch data from the given URL
-async function fetchData(url) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
-}
-
-// Function to summarize the article using the MeaningCloud API
-async function summarizeArticle(url, button, progressBarId) {
-    // Get the closest result element and the summary div
-    const resultDiv = button.closest('.result');
-    const summaryDiv = resultDiv.querySelector('.summary');
-    
-    // Show the progress bar
-    toggleProgressBar(true, progressBarId);
-
-    try {
-        // Construct the API URL for summarization
-        const apiUrl = `https://api.meaningcloud.com/summarization-1.0?key=${apiKeys.meaningCloudApiKey}&url=${encodeURIComponent(url)}&sentences=10`;
-        
-        // Fetch the summarization data
-        const data = await fetchData(apiUrl);
-
-        // Check the response status and display the summary or an error message
-        if (data.status.code === '0') {
-            summaryDiv.innerHTML = `<p>${data.summary}</p>`;
-        } else {
-            summaryDiv.innerHTML = `<p>Summary not available. Please try again later.</p>`;
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        summaryDiv.innerHTML = `<p>There was an error processing your request. Please try again later.</p>`;
-    } finally {
-        // Hide the progress bar
-        toggleProgressBar(false, progressBarId);
-    }
-}
-
-// Event listener for the form reset event to clear previous results
-document.getElementById('factCheckForm').addEventListener('reset', clearPreviousResults);
-
-// Event listener for the form submit event to fetch and display news articles
-document.getElementById('factCheckForm').addEventListener('submit', async function(event) {
-    // Prevent the default form submission behavior
-    event.preventDefault();
-    
-    // Show the progress bar
     toggleProgressBar(true);
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            toggleProgressBar(false);
+            clearPreviousResults();
+            
+            if (data.results && data.results.length > 0) {
+                data.results.forEach((article, index) => {
+                    const resultElement = createResultElement(article, index);
+                    document.getElementById('results').appendChild(resultElement);
+                });
+            } else {
+                displayError('No articles found matching the query.');
+            }
+        })
+        .catch(error => {
+            toggleProgressBar(false);
+            displayError('Error fetching data from the API.');
+            console.error('Error fetching data from the API:', error);
+        });
+}
 
-    // Get the query, sort option, and language from the form inputs
-    const query = document.getElementById('query').value;
-    const sortOption = document.querySelector('input[name="sort"]:checked').value;
-    const language = document.getElementById('language').value;
+// Function to summarize an article using the MeaningCloud API
+function summarizeArticle(index) {
+    const articleUrl = document.querySelector(`.result:nth-child(${index + 1}) .readMore a`).href;
+    const summaryElement = document.getElementById(`summary-${index}`);
+    const progressBarElement = document.getElementById(`progressBar-${index}`);
     
-    // Construct the API URL for fetching news articles
-    const apiUrl = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=${sortOption}&language=${language}&apiKey=${apiKeys.newsApiKey}`;
+    toggleProgressBar(true, `progressBar-${index}`);
+    const apiUrl = 'https://api.meaningcloud.com/summarization-1.0';
+    const params = new URLSearchParams({
+        key: apiKeys.meaningCloudApiKey,
+        url: articleUrl,
+        sentences: 5
+    });
 
-    try {
-        // Fetch the news articles data
-        const data = await fetchData(apiUrl);
-        
-        // Display the results
-        displayResults(data);
-    } catch (error) {
-        // Display an error message if there is an error fetching data
-        displayError('Error fetching data. Please try again.');
-        console.error('Error fetching data:', error);
-    } finally {
-        // Hide the progress bar
-        toggleProgressBar(false);
-    }
+    fetch(`${apiUrl}?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            toggleProgressBar(false, `progressBar-${index}`);
+            if (data.status.code === '0') {
+                summaryElement.innerText = data.summary;
+            } else {
+                summaryElement.innerText = 'Error summarizing the article.';
+            }
+        })
+        .catch(error => {
+            toggleProgressBar(false, `progressBar-${index}`);
+            summaryElement.innerText = 'Error summarizing the article.';
+            console.error('Error summarizing the article:', error);
+        });
+}
+
+// Event listener for form submission
+document.getElementById('factCheckForm').addEventListener('submit', function (event) {
+    event.preventDefault();
+    const query = document.getElementById('query').value;
+    const language = document.getElementById('language').value;
+    factCheck(query, language);
 });

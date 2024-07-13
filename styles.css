@@ -61,17 +61,6 @@ main {
     margin-bottom: 10px;
 }
 
-.sort-options {
-    margin-bottom: 10px; /* Adjust space for language dropdown */
-    display: flex;
-    justify-content: center;
-    color: white;
-}
-
-.sort-options label {
-    margin-right: 10px;
-}
-
 .language-dropdown {
     margin-bottom: 20px; /* Adds space between the dropdown and buttons */
     display: flex;
