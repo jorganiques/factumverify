@@ -1,25 +1,8 @@
 // Object to store API keys
 const apiKeys = {
-    newsApiKey: 'd33534e32a2e4e91ab519acfb9ab8b42', // Replace with your actual News API key
+    newsApiKey: 'd33534e32a2e4e91ab519acfb9ab8b42', // Setup value of apiKey with your actual News API key
     meaningCloudApiKey: '3cad836143b352a37661657d43213759' // Replace with your actual MeaningCloud API key
 };
-
-// Function to fetch data from the given URL
-async function fetchData(url) {
-    console.log(`Fetching data from URL: ${url}`); // Log the URL
-    try {
-        const response = await fetch(url, {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        if (!response.ok) throw new Error('Network response was not ok');
-        return response.json();
-    } catch (error) {
-        console.error('Error fetching data:', error); // Log any errors
-        throw error;
-    }
-}
 
 // Function to show or hide the progress bar
 function toggleProgressBar(display, elementId = 'mainProgressBar') {
@@ -84,6 +67,13 @@ function displayResults(data) {
             resultsSection.appendChild(createResultElement(article, index));
         }
     });
+}
+
+// Function to fetch data from the given URL
+async function fetchData(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
 }
 
 // Function to summarize the article using the MeaningCloud API
