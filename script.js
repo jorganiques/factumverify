@@ -71,7 +71,11 @@ function displayResults(data) {
 
 // Function to fetch data from the given URL
 async function fetchData(url) {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
     if (!response.ok) throw new Error('Network response was not ok');
     return response.json();
 }
